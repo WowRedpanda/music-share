@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🎵 音乐小工具 · 分享给TA</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f0f4f0;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container {
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    padding: 24px 20px 32px;
+    height: fit-content;
+  }
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #2c3e2d;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #8a9a8a;
+    margin-bottom: 20px;
+  }
+  .search-box {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .search-box input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 2px solid #e0e8e0;
+    border-radius: 14px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #f8faf8;
+  }
+  .search-box input:focus {
+    border-color: #7dab7d;
+    background: #fff;
+  }
+  .search-box button {
+    padding: 12px 20px;
+    background: #7dab7d;
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .search-box button:active { background: #5f8f5f; }
+  .search-box button:disabled {
+    background: #c0d0c0;
+    cursor: not-allowed;
+  }
+
+  .status {
+    text-align: center;
+    padding: 30px 0;
+    color: #8a9a8a;
+    font-size: 14px;
+  }
+  .status .loading {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 3px solid #e0e8e0;
+    border-top-color: #7dab7d;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 10px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .song-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .song-card {
+    background: #f8faf8;
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    cursor: pointer;
+  }
+  .song-card:active {
+    transform: scale(0.98);
+  }
+  .song-card.expanded {
+    background: #f0f6f0;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+
+  .song-cover {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #e0e8e0;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .song-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .song-info { flex: 1; min-width: 0; }
+  .song-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: #1a2a1a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .song-artist {
+    font-size: 13px;
+    color: #8a9a8a;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .song-meta {
+    font-size: 11px;
+    color: #b0c0b0;
+    margin-top: 2px;
+  }
+  .fee-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .fee-tag.free { background: #e0f0e0; color: #3a7a3a; }
+  .fee-tag.vip { background: #f5e6d0; color: #b07830; }
+  .fee-tag.unavailable { background: #f0e0e0; color: #a04040; }
+
+  .copy-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    background: #7dab7d;
+    color: #fff;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .copy-btn:active { background: #5f8f5f; }
+  .copy-btn.copied { background: #4a8a4a; }
+
+  .player-section {
+    margin-top: 16px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #f0f6f0;
+    display: none;
+  }
+  .player-section.show { display: block; }
+  .player-section iframe {
+    width: 100%;
+    height: 90px;
+    border: none;
+    display: block;
+  }
+
+  .vip-notice {
+    padding: 16px;
+    text-align: center;
+    color: #8a9a8a;
+    font-size: 13px;
+    background: #f8faf8;
+    border-radius: 14px;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+
+  .history-label {
+    font-size: 12px;
+    color: #b0c0b0;
+    margin: 16px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .history-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e0e8e0;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 12px;
+    color: #c0d0c0;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🎵 音乐小工具</h1>
+  <div class="subtitle">搜歌 · 试听 · 一键分享给TA</div>
+
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="搜索歌曲名称…" autocomplete="off">
+    <button id="searchBtn">搜索</button>
+  </div>
+
+  <div id="status" class="status">🔍 输入歌名，开始搜索</div>
+
+  <div id="songList" class="song-list"></div>
+
+  <div id="playerSection" class="player-section">
+    <div id="playerContainer"></div>
+  </div>
+
+  <div id="footer" class="footer">
+    🦀 Claw 做给苏苏 · 搜不到试试少打几个字
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
+const statusEl = document.getElementById('status');
+const songListEl = document.getElementById('songList');
+const playerSection = document.getElementById('playerSection');
+const playerContainer = document.getElementById('playerContainer');
+const toast = document.getElementById('toast');
+
+let playerVisible = false;
+
+// 搜索
+searchBtn.addEventListener('click', doSearch);
+searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+async function doSearch() {
+  const q = searchInput.value.trim();
+  if (!q) return showToast('输入歌名呀宝贝～');
+  
+  setLoading('🔍 搜刮中…');
+  songListEl.innerHTML = '';
+  hidePlayer();
+
+  try {
+    const res = await fetch(`/api/search?s=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    const songs = data.result?.songs;
+    if (!songs || songs.length === 0) {
+      setStatus('😢 没搜到，试试少打几个字？');
+      return;
+    }
+    setStatus(`🎶 找到 ${songs.length} 首`);
+    renderSongs(songs);
+  } catch (e) {
+    setStatus('❌ 搜索失败，再试试？');
+    console.error(e);
+  }
+}
+
+function renderSongs(songs) {
+  songListEl.innerHTML = '';
+  songs.forEach(song => {
+    const card = document.createElement('div');
+    card.className = 'song-card';
+    
+    const coverUrl = song.album?.picUrl || `https://p2.music.126.net/6y-UleORITEDbvrOLV0Q8A==/5639395138885805.jpg`;
+    const artist = song.artists?.map(a => a.name).join(' / ') || '未知';
+    const fee = song.fee || 0;
+    // fee: 0=免费, 1=VIP, 4=付费专辑, 8=非会员可听片段
+    let feeLabel, feeClass, canPlay;
+    if (fee === 0 || fee === 8) {
+      feeLabel = '🆓 免费';
+      feeClass = 'free';
+      canPlay = true;
+    } else if (fee === 1) {
+      feeLabel = '⭐ VIP';
+      feeClass = 'vip';
+      canPlay = false;
+    } else {
+      feeLabel = '🔒 付费';
+      feeClass = 'unavailable';
+      canPlay = false;
+    }
+
+    const duration = Math.floor(song.duration / 1000);
+    const min = Math.floor(duration / 60);
+    const sec = String(duration % 60).padStart(2, '0');
+
+    card.innerHTML = `
+      <div class="song-cover"><img src="${coverUrl}" loading="lazy" onerror="this.parentElement.style.background='#d0dcd0'"></div>
+      <div class="song-info">
+        <div class="song-name">${song.name}</div>
+        <div class="song-artist">${artist}</div>
+        <div class="song-meta">${min}:${sec} · <span class="fee-tag ${feeClass}">${feeLabel}</span></div>
+      </div>
+      <button class="copy-btn" data-id="${song.id}" data-name="${song.name}" data-artist="${artist}" data-canplay="${canPlay}">📋 复制</button>
+    `;
+
+    // 点击卡片展开内嵌播放器（仅免费歌曲）
+    card.addEventListener('click', function(e) {
+      if (e.target.closest('.copy-btn')) return;
+      if (canPlay) {
+        togglePlayer(song.id, song.name);
+      } else {
+        showToast('⭐ 这是 VIP 歌曲，试试搜其他版本～');
+      }
+    });
+
+    // 复制按钮
+    const copyBtn = card.querySelector('.copy-btn');
+    copyBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const id = this.dataset.id;
+      const name = this.dataset.name;
+      const artist = this.dataset.artist;
+      const url = `https://music.163.com/song?id=${id}`;
+      const shareText = `${name} - ${artist}\n${url}`;
+      
+      // 尝试 Clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareText).then(() => {
+          this.textContent = '✅ 已复制';
+          this.classList.add('copied');
+          setTimeout(() => {
+            this.textContent = '📋 复制';
+            this.classList.remove('copied');
+          }, 2000);
+        }).catch(() => fallbackCopy(shareText, this));
+      } else {
+        fallbackCopy(shareText, this);
+      }
+
+      if (!canPlay) {
+        showToast('⭐ 已复制链接，但这是 VIP 歌曲哦～');
+      } else {
+        showToast('✅ 已复制！点开就能听～');
+      }
+    });
+
+    songListEl.appendChild(card);
+  });
+}
+
+function fallbackCopy(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    btn.textContent = '✅ 已复制';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '📋 复制';
+      btn.classList.remove('copied');
+    }, 2000);
+  } catch(e) {}
+  document.body.removeChild(ta);
+}
+
+function togglePlayer(songId, songName) {
+  if (playerVisible && playerContainer.dataset.songId == songId) {
+    hidePlayer();
+    return;
+  }
+  // 网易云外链播放器
+  playerContainer.innerHTML = `
+    <div style="padding: 12px 16px 8px; font-size: 13px; color: #5a7a5a; font-weight: 500;">
+      🎧 正在播放：${songName}
+    </div>
+    <iframe src="https://music.163.com/outchain/player?type=2&id=${songId}&auto=1&height=66" 
+      allow="autoplay" loading="lazy"></iframe>
+  `;
+  playerContainer.dataset.songId = songId;
+  playerSection.classList.add('show');
+  playerVisible = true;
+}
+
+function hidePlayer() {
+  playerContainer.innerHTML = '';
+  playerSection.classList.remove('show');
+  playerVisible = false;
+}
+
+function setLoading(msg) {
+  statusEl.innerHTML = `<div class="loading"></div>${msg}`;
+}
+function setStatus(msg) {
+  statusEl.textContent = msg;
+}
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// 初次引导
+searchInput.focus();
+</script>
+</body>
+</html>
