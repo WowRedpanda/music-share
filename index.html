@@ -19,7 +19,6 @@
     max-width: 480px;
     background: #fff;
     border-radius: 24px;
-    overflow: hidden;
     box-shadow: 0 8px 32px rgba(0,0,0,0.08);
     padding: 24px 20px 32px;
     height: fit-content;
@@ -105,13 +104,7 @@
     transition: transform 0.15s, box-shadow 0.15s;
     cursor: pointer;
   }
-  .song-card:active {
-    transform: scale(0.98);
-  }
-  .song-card.expanded {
-    background: #f0f6f0;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-  }
+  .song-card:active { transform: scale(0.98); }
 
   .song-cover {
     width: 48px;
@@ -191,15 +184,6 @@
     display: block;
   }
 
-  .vip-notice {
-    padding: 16px;
-    text-align: center;
-    color: #8a9a8a;
-    font-size: 13px;
-    background: #f8faf8;
-    border-radius: 14px;
-  }
-
   .toast {
     position: fixed;
     bottom: 30px;
@@ -214,23 +198,9 @@
     transition: opacity 0.3s;
     pointer-events: none;
     z-index: 100;
+    white-space: nowrap;
   }
   .toast.show { opacity: 1; }
-
-  .history-label {
-    font-size: 12px;
-    color: #b0c0b0;
-    margin: 16px 0 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .history-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #e0e8e0;
-  }
 
   .footer {
     text-align: center;
@@ -252,15 +222,14 @@
   </div>
 
   <div id="status" class="status">🔍 输入歌名，开始搜索</div>
-
   <div id="songList" class="song-list"></div>
 
   <div id="playerSection" class="player-section">
     <div id="playerContainer"></div>
   </div>
 
-  <div id="footer" class="footer">
-    🦀 Claw 做给苏苏 · 搜不到试试少打几个字
+  <div class="footer">
+    🦀 Claw 做给苏苏
   </div>
 </div>
 
@@ -277,7 +246,6 @@ const toast = document.getElementById('toast');
 
 let playerVisible = false;
 
-// 搜索
 searchBtn.addEventListener('click', doSearch);
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 
@@ -290,7 +258,8 @@ async function doSearch() {
   hidePlayer();
 
   try {
-    const res = await fetch(`/api/search?s=${encodeURIComponent(q)}`);
+    // 使用 netease-cloud-music-api 的公开代理服务
+    const res = await fetch(`https://netease-cloud-music-api-zeta-seven.vercel.app/search?keywords=${encodeURIComponent(q)}&limit=15`);
     const data = await res.json();
     const songs = data.result?.songs;
     if (!songs || songs.length === 0) {
@@ -300,42 +269,44 @@ async function doSearch() {
     setStatus(`🎶 找到 ${songs.length} 首`);
     renderSongs(songs);
   } catch (e) {
-    setStatus('❌ 搜索失败，再试试？');
     console.error(e);
+    // 备用方案：用另一个公开代理
+    try {
+      const res2 = await fetch(`https://api.mmusic.workers.dev/search?keywords=${encodeURIComponent(q)}&limit=15`);
+      const data2 = await res2.json();
+      const songs2 = data2.result?.songs;
+      if (!songs2 || songs2.length === 0) throw 'no results';
+      setStatus(`🎶 找到 ${songs2.length} 首`);
+      renderSongs(songs2);
+    } catch(e2) {
+      setStatus('❌ 搜索失败，可能是网络问题，再试试？');
+    }
   }
 }
 
 function renderSongs(songs) {
-  songListEl.innerHTML = '';
   songs.forEach(song => {
     const card = document.createElement('div');
     card.className = 'song-card';
     
-    const coverUrl = song.album?.picUrl || `https://p2.music.126.net/6y-UleORITEDbvrOLV0Q8A==/5639395138885805.jpg`;
-    const artist = song.artists?.map(a => a.name).join(' / ') || '未知';
-    const fee = song.fee || 0;
-    // fee: 0=免费, 1=VIP, 4=付费专辑, 8=非会员可听片段
+    const coverUrl = song.al?.picUrl || song.album?.picUrl || '';
+    const artist = (song.ar || song.artists || []).map(a => a.name).join(' / ') || '未知';
+    const fee = song.fee ?? 0;
     let feeLabel, feeClass, canPlay;
     if (fee === 0 || fee === 8) {
-      feeLabel = '🆓 免费';
-      feeClass = 'free';
-      canPlay = true;
+      feeLabel = '🆓 免费'; feeClass = 'free'; canPlay = true;
     } else if (fee === 1) {
-      feeLabel = '⭐ VIP';
-      feeClass = 'vip';
-      canPlay = false;
+      feeLabel = '⭐ VIP'; feeClass = 'vip'; canPlay = false;
     } else {
-      feeLabel = '🔒 付费';
-      feeClass = 'unavailable';
-      canPlay = false;
+      feeLabel = '🔒 付费'; feeClass = 'unavailable'; canPlay = false;
     }
 
-    const duration = Math.floor(song.duration / 1000);
-    const min = Math.floor(duration / 60);
-    const sec = String(duration % 60).padStart(2, '0');
+    const dt = Math.floor((song.dt || song.duration || 0) / 1000);
+    const min = Math.floor(dt / 60);
+    const sec = String(dt % 60).padStart(2, '0');
 
     card.innerHTML = `
-      <div class="song-cover"><img src="${coverUrl}" loading="lazy" onerror="this.parentElement.style.background='#d0dcd0'"></div>
+      <div class="song-cover">${coverUrl ? `<img src="${coverUrl}" loading="lazy" onerror="this.parentElement.style.background='#d0dcd0'">` : ''}</div>
       <div class="song-info">
         <div class="song-name">${song.name}</div>
         <div class="song-artist">${artist}</div>
@@ -344,17 +315,15 @@ function renderSongs(songs) {
       <button class="copy-btn" data-id="${song.id}" data-name="${song.name}" data-artist="${artist}" data-canplay="${canPlay}">📋 复制</button>
     `;
 
-    // 点击卡片展开内嵌播放器（仅免费歌曲）
     card.addEventListener('click', function(e) {
       if (e.target.closest('.copy-btn')) return;
       if (canPlay) {
         togglePlayer(song.id, song.name);
       } else {
-        showToast('⭐ 这是 VIP 歌曲，试试搜其他版本～');
+        showToast('⭐ 这是 VIP 歌曲～点复制也能拿到链接');
       }
     });
 
-    // 复制按钮
     const copyBtn = card.querySelector('.copy-btn');
     copyBtn.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -364,7 +333,6 @@ function renderSongs(songs) {
       const url = `https://music.163.com/song?id=${id}`;
       const shareText = `${name} - ${artist}\n${url}`;
       
-      // 尝试 Clipboard API
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(shareText).then(() => {
           this.textContent = '✅ 已复制';
@@ -377,12 +345,7 @@ function renderSongs(songs) {
       } else {
         fallbackCopy(shareText, this);
       }
-
-      if (!canPlay) {
-        showToast('⭐ 已复制链接，但这是 VIP 歌曲哦～');
-      } else {
-        showToast('✅ 已复制！点开就能听～');
-      }
+      showToast(canPlay ? '✅ 已复制！点开就能听～' : '⭐ 已复制链接，这是 VIP 歌曲哦');
     });
 
     songListEl.appendChild(card);
@@ -413,7 +376,6 @@ function togglePlayer(songId, songName) {
     hidePlayer();
     return;
   }
-  // 网易云外链播放器
   playerContainer.innerHTML = `
     <div style="padding: 12px 16px 8px; font-size: 13px; color: #5a7a5a; font-weight: 500;">
       🎧 正在播放：${songName}
@@ -438,7 +400,6 @@ function setLoading(msg) {
 function setStatus(msg) {
   statusEl.textContent = msg;
 }
-
 function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add('show');
@@ -446,7 +407,6 @@ function showToast(msg) {
   toast._timeout = setTimeout(() => toast.classList.remove('show'), 2000);
 }
 
-// 初次引导
 searchInput.focus();
 </script>
 </body>
